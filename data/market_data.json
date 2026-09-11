@@ -2,8 +2,9 @@
   "last_updated": "2026-08-01",
   "us_interest_rate": 3.63,
   "hk_property": {
-    "avg_price_sqft": 13500.0,
-    "avg_rent_sqft": 39.0,
-    "gross_yield_pct": 3.47
+    "period": "Latest",
+    "avg_price_sqft": 13470.83,
+    "avg_rent_sqft": 39.02,
+    "gross_yield_pct": 3.48
   }
 }
