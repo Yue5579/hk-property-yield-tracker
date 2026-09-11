@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HK Property Yield vs. US Interest Rates</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #f8fafc; color: #0f172a; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card h3 { margin: 0 0 10px 0; font-size: 14px; color: #64748b; text-transform: uppercase; }
+    .card .val { font-size: 28px; font-weight: bold; color: #1e293b; }
+    .chart-box { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+
+  <h2>HK Residential Rental Return vs. US Interest Rate</h2>
+  <p style="color: #64748b;">Tracking real-time yield differentials for real estate investment analysis.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>HK Gross Rental Yield</h3>
+      <div class="val" id="yield-val">--%</div>
+    </div>
+    <div class="card">
+      <h3>US Interest Rate</h3>
+      <div class="val" id="rate-val">--%</div>
+    </div>
+    <div class="card">
+      <h3>Yield Spread</h3>
+      <div class="val" id="spread-val">--%</div>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <canvas id="comparisonChart"></canvas>
+  </div>
+
+  <script>
+    async function loadData() {
+      try {
+        const res = await fetch('./data/market_data.json');
+        const data = await res.json();
+
+        const hkYield = data.hk_property.gross_yield_pct;
+        const usRate = data.us_interest_rate;
+        const spread = (hkYield - usRate).toFixed(2);
+
+        document.getElementById('yield-val').innerText = `${hkYield}%`;
+        document.getElementById('rate-val').innerText = `${usRate}%`;
+        document.getElementById('spread-val').innerText = `${spread}%`;
+
+        const ctx = document.getElementById('comparisonChart').getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['HK Gross Rental Yield', 'US Interest Rate'],
+            datasets: [{
+              label: 'Percentage (%)',
+              data: [hkYield, usRate],
+              backgroundColor: ['#2563eb', '#dc2626']
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+      } catch (err) {
+        console.error("Data loading error:", err);
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
