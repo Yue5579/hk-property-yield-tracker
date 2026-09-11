@@ -3,30 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HK Property Yield vs. US Interest Rates</title>
+  <title>HK Property Yield vs US Rates (Historical Trend)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #f8fafc; color: #0f172a; }
     .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
     .card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .card h3 { margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card h3 { margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase; }
     .card .val { font-size: 26px; font-weight: bold; color: #1e293b; }
-    .chart-box { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
-    .meta-tag { font-size: 14px; color: #64748b; margin-top: -10px; margin-bottom: 20px; }
+    .chart-box { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
   </style>
 </head>
 <body>
 
-  <h2>HK Residential Rental Return vs. US Interest Rate</h2>
-  <div class="meta-tag" id="update-date">Loading market period...</div>
+  <h2>HK Rental Yield vs. US Interest Rate Trend</h2>
+  <p id="subhead" style="color: #64748b;">Historical 24-Month Data</p>
 
   <div class="card-grid">
     <div class="card">
-      <h3>HK Gross Rental Yield</h3>
+      <h3>Latest HK Yield</h3>
       <div class="val" id="yield-val">--%</div>
     </div>
     <div class="card">
-      <h3>US Fed Rate</h3>
+      <h3>Latest US Fed Rate</h3>
       <div class="val" id="rate-val">--%</div>
     </div>
     <div class="card">
@@ -40,7 +39,13 @@
   </div>
 
   <div class="chart-box">
-    <canvas id="comparisonChart"></canvas>
+    <h3>Yield vs US Interest Rate (%)</h3>
+    <canvas id="yieldVsRateChart"></canvas>
+  </div>
+
+  <div class="chart-box">
+    <h3>HK Sale Price Trend (HKD / sq.ft)</h3>
+    <canvas id="priceTrendChart"></canvas>
   </div>
 
   <script>
@@ -48,37 +53,47 @@
       try {
         const res = await fetch('./data/market_data.json');
         const data = await res.json();
+        const trend = data.trend;
 
-        const hkYield = data.hk_property.gross_yield_pct;
-        const usRate = data.us_interest_rate;
-        const price = data.hk_property.avg_price_sqft;
-        const rent = data.hk_property.avg_rent_sqft;
+        const latest = trend[trend.length - 1];
+        document.getElementById('yield-val').innerText = `${latest.gross_yield_pct}%`;
+        document.getElementById('rate-val').innerText = `${latest.us_fed_rate ?? 'N/A'}%`;
+        document.getElementById('price-val').innerText = `$${latest.avg_price_sqft}`;
+        document.getElementById('rent-val').innerText = `$${latest.avg_rent_sqft}`;
+        document.getElementById('subhead').innerText = `Historical comparison up to ${data.last_updated}`;
 
-        document.getElementById('yield-val').innerText = `${hkYield}%`;
-        document.getElementById('rate-val').innerText = `${usRate}%`;
-        document.getElementById('price-val').innerText = `$${price}/sqft`;
-        document.getElementById('rent-val').innerText = `$${rent}/sqft`;
-        document.getElementById('update-date').innerText = `Data Period: ${data.hk_property.period} | Rate As Of: ${data.last_updated}`;
+        const labels = trend.map(item => item.month);
+        const yields = trend.map(item => item.gross_yield_pct);
+        const rates = trend.map(item => item.us_fed_rate);
+        const prices = trend.map(item => item.avg_price_sqft);
 
-        const ctx = document.getElementById('comparisonChart').getContext('2d');
-        new Chart(ctx, {
-          type: 'bar',
+        // Chart 1: Yield vs US Interest Rate
+        new Chart(document.getElementById('yieldVsRateChart'), {
+          type: 'line',
           data: {
-            labels: ['HK Gross Rental Yield (%)', 'US Fed Funds Interest Rate (%)'],
-            datasets: [{
-              label: 'Percentage Return / Rate',
-              data: [hkYield, usRate],
-              backgroundColor: ['#2563eb', '#dc2626'],
-              borderRadius: 6
-            }]
+            labels: labels,
+            datasets: [
+              { label: 'HK Gross Yield (%)', data: yields, borderColor: '#2563eb', backgroundColor: '#2563eb', tension: 0.2 },
+              { label: 'US Fed Funds Rate (%)', data: rates, borderColor: '#dc2626', backgroundColor: '#dc2626', tension: 0.2 }
+            ]
           },
-          options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
-          }
+          options: { responsive: true }
         });
+
+        // Chart 2: Property Sale Price Trend
+        new Chart(document.getElementById('priceTrendChart'), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              { label: 'Avg Sale Price (HKD/sqft)', data: prices, borderColor: '#059669', backgroundColor: '#059669', tension: 0.2 }
+            ]
+          },
+          options: { responsive: true }
+        });
+
       } catch (err) {
-        console.error("Data loading error:", err);
+        console.error("Error loading market trend data:", err);
       }
     }
 
