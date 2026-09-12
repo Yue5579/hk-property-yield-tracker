@@ -11,13 +11,15 @@
     .card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .card h3 { margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase; }
     .card .val { font-size: 26px; font-weight: bold; color: #1e293b; }
-    .chart-box { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
+    .chart-box { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px; min-height: 300px; }
+    .error-msg { color: #dc2626; font-weight: bold; padding: 10px; background: #fee2e2; border-radius: 6px; display: none; }
   </style>
 </head>
 <body>
 
   <h2>HK Rental Yield vs. US Interest Rate Trend</h2>
-  <p id="subhead" style="color: #64748b;">Historical 24-Month Data</p>
+  <p id="subhead" style="color: #64748b;">Historical Data</p>
+  <div id="err-box" class="error-msg"></div>
 
   <div class="card-grid">
     <div class="card">
@@ -40,20 +42,31 @@
 
   <div class="chart-box">
     <h3>Yield vs US Interest Rate (%)</h3>
-    <canvas id="yieldVsRateChart"></canvas>
+    <canvas id="yieldVsRateChart" height="120"></canvas>
   </div>
 
   <div class="chart-box">
     <h3>HK Sale Price Trend (HKD / sq.ft)</h3>
-    <canvas id="priceTrendChart"></canvas>
+    <canvas id="priceTrendChart" height="120"></canvas>
   </div>
 
   <script>
     async function loadData() {
       try {
-        const res = await fetch('./data/market_data.json');
+        // Cache-busting parameter prevents old browser caches
+        const cacheBuster = new Date().getTime();
+        const res = await fetch(`./data/market_data.json?t=${cacheBuster}`);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP Error Status: ${res.status}`);
+        }
+
         const data = await res.json();
         const trend = data.trend;
+
+        if (!trend || trend.length === 0) {
+          throw new Error("JSON fetched successfully, but 'trend' array is empty or missing.");
+        }
 
         const latest = trend[trend.length - 1];
         document.getElementById('yield-val').innerText = `${latest.gross_yield_pct}%`;
@@ -77,7 +90,7 @@
               { label: 'US Fed Funds Rate (%)', data: rates, borderColor: '#dc2626', backgroundColor: '#dc2626', tension: 0.2 }
             ]
           },
-          options: { responsive: true }
+          options: { responsive: true, maintainAspectRatio: true }
         });
 
         // Chart 2: Property Sale Price Trend
@@ -89,11 +102,14 @@
               { label: 'Avg Sale Price (HKD/sqft)', data: prices, borderColor: '#059669', backgroundColor: '#059669', tension: 0.2 }
             ]
           },
-          options: { responsive: true }
+          options: { responsive: true, maintainAspectRatio: true }
         });
 
       } catch (err) {
         console.error("Error loading market trend data:", err);
+        const errBox = document.getElementById('err-box');
+        errBox.innerText = `Failed to load data: ${err.message}`;
+        errBox.style.display = 'block';
       }
     }
 
