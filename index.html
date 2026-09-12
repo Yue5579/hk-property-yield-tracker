@@ -3,113 +3,163 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HK Property Yield vs US Rates (Historical Trend)</title>
+  <title>HK Property Yield vs US Rates Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #f8fafc; color: #0f172a; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 950px; margin: 30px auto; padding: 0 20px; background: #f8fafc; color: #0f172a; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .lang-btn { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .lang-btn:hover { background: #1d4ed8; }
     .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
     .card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .card h3 { margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase; }
     .card .val { font-size: 26px; font-weight: bold; color: #1e293b; }
-    .chart-box { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px; min-height: 300px; }
-    .error-msg { color: #dc2626; font-weight: bold; padding: 10px; background: #fee2e2; border-radius: 6px; display: none; }
+    .chart-box { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; }
   </style>
 </head>
 <body>
 
-  <h2>HK Rental Yield vs. US Interest Rate Trend</h2>
-  <p id="subhead" style="color: #64748b;">Historical Data</p>
-  <div id="err-box" class="error-msg"></div>
+  <div class="header-bar">
+    <div>
+      <h2 id="title">HK Rental Yield vs. US Interest Rate Trend</h2>
+      <p id="subhead" style="color: #64748b; margin: 0;">Full Historical Data Comparison</p>
+    </div>
+    <button class="lang-btn" onclick="toggleLanguage()" id="lang-btn">繁體中文</button>
+  </div>
 
   <div class="card-grid">
     <div class="card">
-      <h3>Latest HK Yield</h3>
+      <h3 id="lbl-yield">Latest HK Yield</h3>
       <div class="val" id="yield-val">--%</div>
     </div>
     <div class="card">
-      <h3>Latest US Fed Rate</h3>
+      <h3 id="lbl-rate">Latest US Fed Rate</h3>
       <div class="val" id="rate-val">--%</div>
     </div>
     <div class="card">
-      <h3>Avg Sale Price</h3>
+      <h3 id="lbl-price">Avg Sale Price</h3>
       <div class="val" id="price-val">$--</div>
     </div>
     <div class="card">
-      <h3>Avg Monthly Rent</h3>
+      <h3 id="lbl-rent">Avg Monthly Rent</h3>
       <div class="val" id="rent-val">$--</div>
     </div>
   </div>
 
   <div class="chart-box">
-    <h3>Yield vs US Interest Rate (%)</h3>
-    <canvas id="yieldVsRateChart" height="120"></canvas>
-  </div>
-
-  <div class="chart-box">
-    <h3>HK Sale Price Trend (HKD / sq.ft)</h3>
-    <canvas id="priceTrendChart" height="120"></canvas>
+    <h3 id="chart-title">Full Historical Trend (Yield, Fed Rate & Sale Price)</h3>
+    <canvas id="multiChart" height="130"></canvas>
   </div>
 
   <script>
+    let currentLang = 'en';
+    let marketData = null;
+    let chartInstance = null;
+
+    const i18n = {
+      en: {
+        title: "HK Rental Yield vs. US Interest Rate Trend",
+        subhead: "Full Historical Data Comparison",
+        langBtn: "繁體中文",
+        lblYield: "Latest HK Yield",
+        lblRate: "Latest US Fed Rate",
+        lblPrice: "Avg Sale Price",
+        lblRent: "Avg Monthly Rent",
+        chartTitle: "Full Historical Trend (Yield, Fed Rate & Sale Price)",
+        dsYield: "HK Gross Yield (%)",
+        dsRate: "US Fed Funds Rate (%)",
+        dsPrice: "Avg Sale Price (HKD/sqft)"
+      },
+      zh: {
+        title: "香港住宅租金回報率 vs 美國聯邦利率趨勢",
+        subhead: "完整歷史數據比較",
+        langBtn: "English",
+        lblYield: "最新香港租金回報率",
+        lblRate: "最新美國聯邦利率",
+        lblPrice: "平均呎價",
+        lblRent: "平均月租",
+        chartTitle: "完整歷史趨勢圖（回報率、美息及樓價）",
+        dsYield: "香港租金回報率 (%)",
+        dsRate: "美國聯邦利率 (%)",
+        dsPrice: "平均售價 (港幣/呎)"
+      }
+    };
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'en' ? 'zh' : 'en';
+      updateUI();
+    }
+
+    function updateUI() {
+      const t = i18n[currentLang];
+      document.getElementById('title').innerText = t.title;
+      document.getElementById('subhead').innerText = t.subhead;
+      document.getElementById('lang-btn').innerText = t.langBtn;
+      document.getElementById('lbl-yield').innerText = t.lblYield;
+      document.getElementById('lbl-rate').innerText = t.lblRate;
+      document.getElementById('lbl-price').innerText = t.lblPrice;
+      document.getElementById('lbl-rent').innerText = t.lblRent;
+      document.getElementById('chart-title').innerText = t.chartTitle;
+
+      if (chartInstance && marketData) {
+        chartInstance.data.datasets[0].label = t.dsYield;
+        chartInstance.data.datasets[1].label = t.dsRate;
+        chartInstance.data.datasets[2].label = t.dsPrice;
+        chartInstance.update();
+      }
+    }
+
     async function loadData() {
       try {
-        // Cache-busting parameter prevents old browser caches
-        const cacheBuster = new Date().getTime();
-        const res = await fetch(`./data/market_data.json?t=${cacheBuster}`);
-        
-        if (!res.ok) {
-          throw new Error(`HTTP Error Status: ${res.status}`);
-        }
-
-        const data = await res.json();
-        const trend = data.trend;
-
-        if (!trend || trend.length === 0) {
-          throw new Error("JSON fetched successfully, but 'trend' array is empty or missing.");
-        }
+        const res = await fetch(`./data/market_data.json?t=${new Date().getTime()}`);
+        marketData = await res.json();
+        const trend = marketData.trend;
 
         const latest = trend[trend.length - 1];
         document.getElementById('yield-val').innerText = `${latest.gross_yield_pct}%`;
         document.getElementById('rate-val').innerText = `${latest.us_fed_rate ?? 'N/A'}%`;
         document.getElementById('price-val').innerText = `$${latest.avg_price_sqft}`;
         document.getElementById('rent-val').innerText = `$${latest.avg_rent_sqft}`;
-        document.getElementById('subhead').innerText = `Historical comparison up to ${data.last_updated}`;
 
-        const labels = trend.map(item => item.month);
-        const yields = trend.map(item => item.gross_yield_pct);
-        const rates = trend.map(item => item.us_fed_rate);
-        const prices = trend.map(item => item.avg_price_sqft);
+        const labels = trend.map(i => i.month);
+        const yields = trend.map(i => i.gross_yield_pct);
+        const rates = trend.map(i => i.us_fed_rate);
+        const prices = trend.map(i => i.avg_price_sqft);
 
-        // Chart 1: Yield vs US Interest Rate
-        new Chart(document.getElementById('yieldVsRateChart'), {
+        const ctx = document.getElementById('multiChart').getContext('2d');
+        const t = i18n[currentLang];
+
+        chartInstance = new Chart(ctx, {
           type: 'line',
           data: {
             labels: labels,
             datasets: [
-              { label: 'HK Gross Yield (%)', data: yields, borderColor: '#2563eb', backgroundColor: '#2563eb', tension: 0.2 },
-              { label: 'US Fed Funds Rate (%)', data: rates, borderColor: '#dc2626', backgroundColor: '#dc2626', tension: 0.2 }
+              { label: t.dsYield, data: yields, borderColor: '#2563eb', yAxisID: 'yPercentage', tension: 0.2 },
+              { label: t.dsRate, data: rates, borderColor: '#dc2626', yAxisID: 'yPercentage', tension: 0.2 },
+              { label: t.dsPrice, data: prices, borderColor: '#059669', yAxisID: 'yPrice', tension: 0.2, borderDash: [5, 5] }
             ]
           },
-          options: { responsive: true, maintainAspectRatio: true }
-        });
-
-        // Chart 2: Property Sale Price Trend
-        new Chart(document.getElementById('priceTrendChart'), {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [
-              { label: 'Avg Sale Price (HKD/sqft)', data: prices, borderColor: '#059669', backgroundColor: '#059669', tension: 0.2 }
-            ]
-          },
-          options: { responsive: true, maintainAspectRatio: true }
+          options: {
+            responsive: true,
+            scales: {
+              yPercentage: {
+                type: 'linear',
+                position: 'left',
+                title: { display: true, text: 'Percentage (%)' },
+                ticks: { callback: v => v + '%' }
+              },
+              yPrice: {
+                type: 'linear',
+                position: 'right',
+                title: { display: true, text: 'HKD / sq.ft ($)' },
+                grid: { drawOnChartArea: false }
+              }
+            }
+          }
         });
 
       } catch (err) {
-        console.error("Error loading market trend data:", err);
-        const errBox = document.getElementById('err-box');
-        errBox.innerText = `Failed to load data: ${err.message}`;
-        errBox.style.display = 'block';
+        console.error("Error loading data:", err);
       }
     }
 
